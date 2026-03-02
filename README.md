@@ -1,66 +1,57 @@
+# 🧠 Brain Tumor AI Analysis — React App
 
+A fully responsive React app converted from the mobile design screens.
 
-🧠 Brain Tumor Detection Platform (Frontend)
+## 📁 Project Structure
 
-A modern and responsive React-based frontend application for brain tumor detection and medical data visualization.
-
-This project is part of a graduation project focused on integrating AI-powered tumor classification with an intuitive and user-friendly interface for doctors and medical staff.
-
-🚀 Overview
-
-The platform provides a clean and interactive interface for:
-
-Uploading MRI brain scan images
-
-Displaying AI prediction results
-
-Visualizing diagnostic insights
-
-Managing patient records
-
-Generating reports
-
-Built with scalability, performance, and usability in mind.
-
-🛠 Tech Stack
-
-React.js
-
-React Hooks
-
-Context API (State Management)
-
-Axios (API Integration)
-
-CSS3 / Custom Styling
-
-Responsive Design
-
-✨ Features
-
-📤 MRI Image Upload Interface
-
-🤖 AI Prediction Result Display
-
-📊 Medical Data Visualization
-
-👤 Patient Management UI
-
-📄 Report Preview & Download
-
-🌙 Clean & Modern UI Design
-
-📂 Project Structure
+```
 src/
- ├── components/
- ├── pages/
- ├── context/
- ├── hooks/
- ├── api/
- └── assets/
-⚙️ Getting Started
-npm install
-npm run dev
-🎯 Project Goal
+├── assets/
+│   └── svgs/              ← All SVG icons from the design
+├── components/
+│   ├── BottomNavbar.jsx   ← Bottom tab navigation
+│   └── TopBar.jsx         ← Reusable top header with back button
+├── context/
+│   └── AppContext.jsx     ← App-wide state + routing
+├── hooks/
+│   └── useValidation.js   ← All form validation logic
+├── pages/
+│   ├── SplashScreen.jsx
+│   ├── SignInPage.jsx      ← With email + password validation
+│   ├── SignUpPage.jsx      ← With full form validation
+│   ├── AuthPages.jsx       ← ForgotPassword, OTP, ResetPassword
+│   ├── HomePage.jsx
+│   ├── ScanPages.jsx       ← Upload + Result
+│   ├── HistoryPage.jsx     ← With search
+│   ├── ProfilePages.jsx    ← Profile, ChangePassword, Notifications, Privacy, FAQ, Contact
+│   └── ChatPage.jsx        ← AI Chat with questions
+├── styles/
+│   └── global.css         ← All styles, responsive, CSS variables
+├── App.jsx
+├── AppRouter.jsx          ← Clean page routing
+└── index.jsx
+```
 
-To bridge AI-powered medical analysis with a seamless and intuitive user experience that supports real-world healthcare workflows.
+## ✅ Features
+
+- **17 screens** implemented
+- **Validation** on all forms (email, password, name, OTP, etc.)
+- **Responsive** — works on any phone (max-width 430px, 100% on smaller)
+- **SVG icons** used throughout (no external icon library needed)
+- **Navigation** with back buttons and bottom navbar
+- **No external routing library** (uses Context API)
+
+## 🚀 Getting Started
+
+```bash
+cd braintumor
+npm install
+npm start
+```
+
+## 🎨 Color Palette
+
+- Primary: `#2E8B8B` (Teal)
+- Danger: `#EF4444`
+- Success: `#22C55E`
+- Warning: `#F59E0B`
