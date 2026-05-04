@@ -10,8 +10,9 @@ import { UploadPage, ResultPage } from "./pages/ScanPages";
 import HistoryPage from "./pages/HistoryPage";
 import {
   ProfilePage, ChangePasswordPage, NotificationsPage,
-  PrivacyPage, FAQPage, ContactSupportPage,
+  PrivacyPage, FaqPage, ContactPage,  // ✅ Fixed: was FAQPage / ContactSupportPage (wrong names)
 } from "./pages/ProfilePages";
+import EditProfilePage from "./pages/EditProfilePage";
 import ChatPage from "./pages/ChatPage";
 
 export default function AppRouter() {
@@ -29,14 +30,14 @@ export default function AppRouter() {
     [PAGES.RESULT]:           <ResultPage />,
     [PAGES.HISTORY]:          <HistoryPage />,
     [PAGES.PROFILE]:          <ProfilePage />,
+    [PAGES.EDIT_PROFILE]:     <EditProfilePage />,   // ✅ Added missing route
     [PAGES.CHANGE_PASSWORD]:  <ChangePasswordPage />,
     [PAGES.NOTIFICATIONS]:    <NotificationsPage />,
     [PAGES.PRIVACY]:          <PrivacyPage />,
-    [PAGES.FAQ]:              <FAQPage />,
-    [PAGES.CONTACT]:          <ContactSupportPage />,
+    [PAGES.FAQ]:              <FaqPage />,           // ✅ Fixed: was FAQPage
+    [PAGES.CONTACT]:          <ContactPage />,       // ✅ Fixed: was ContactSupportPage
     [PAGES.CHAT]:             <ChatPage />,
   };
 
-  // لو الصفحة غير موجودة، نعرض SplashScreen كافتراضي
   return routes[page] || <SplashScreen />;
 }

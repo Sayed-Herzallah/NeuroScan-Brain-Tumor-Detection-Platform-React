@@ -1,212 +1,133 @@
 import { useState, useRef, useEffect } from "react";
-import { useApp, PAGES } from "../context/AppContext";
-import TopBar from "../components/TopBar";
+import { useApp } from "../context/AppContext";
 
-const AI_QUESTIONS = [
-  {
-    group: "Understanding the Result?",
-    items: [
-      { id: "q1", text: "What does this result mean?" },
-      { id: "q2", text: "How accurate is this analysis?" },
-      { id: "q3", text: "Is the detected tumor benign or malignant?" },
-    ],
-  },
-  {
-    group: "Next Steps",
-    items: [
-      { id: "q4", text: "What should I do next?" },
-      { id: "q5", text: "Should I see a doctor?" },
-    ],
-  },
-  {
-    group: "Accuracy & Safety",
-    items: [
-      { id: "q6", text: "Can this result be wrong?" },
-    ],
-  },
+const SYSTEM_MSG = "Hello! I'm NeuroAI, your brain health assistant. I can answer questions about brain tumors, MRI analysis, and help you understand your scan results. How can I help you?";
+
+const CANNED = [
+  { q: /what.*tumor/i,        a: "Brain tumors are abnormal growths of cells in the brain. They can be benign (non-cancerous) or malignant (cancerous). The AI analyzes MRI characteristics to classify tumors." },
+  { q: /malignant/i,          a: "Malignant tumors are cancerous and can grow and spread. A malignant result means you should consult a neurologist or oncologist immediately for a complete evaluation." },
+  { q: /benign/i,             a: "Benign tumors are non-cancerous. They can still cause symptoms depending on their location, so follow-up with your doctor is still recommended even with a benign result." },
+  { q: /accurate|accuracy/i,  a: "Our AI model achieves approximately 95% accuracy on validated MRI datasets. It is designed to assist — not replace — professional medical diagnosis." },
+  { q: /how.*work|how does/i, a: "The AI analyzes your MRI image using a deep convolutional neural network trained on thousands of labeled scans. It identifies tumor patterns and outputs a classification with a confidence score." },
+  { q: /upload|scan/i,        a: "To upload a scan, tap the Upload tab at the bottom of the screen. Select your MRI image file, then tap 'Analyze Scan' to get results." },
+  { q: /safe|privacy|data/i,  a: "Your data is encrypted in transit and at rest. We never share your scans with third parties. You can delete your data at any time from the Privacy section in your profile." },
 ];
 
-const AI_ANSWERS = {
-  "What does this result mean?": "This result suggests that the MRI scan shows patterns often linked to malignant tumors. However, this is an AI-assisted analysis and should be confirmed by a medical professional.",
-  "How accurate is this analysis?": "The AI model achieves over 90% accuracy in clinical testing. Confidence scores above 85% are generally considered high-reliability results.",
-  "Is the detected tumor benign or malignant?": "The analysis indicates patterns consistent with malignant tumor characteristics. A radiologist or oncologist should confirm the diagnosis.",
-  "What should I do next?": "We recommend scheduling an appointment with a neurologist or oncologist as soon as possible. Share this analysis along with your MRI scan.",
-  "Should I see a doctor?": "Yes, absolutely. AI analysis is a screening tool only. A qualified physician must evaluate your results and medical history before any conclusion.",
-  "Can this result be wrong?": "Yes, no AI system is 100% accurate. False positives and negatives are possible. Always consult a medical professional for a definitive diagnosis.",
-};
-
 export default function ChatPage() {
-  const { navigate } = useApp();
+  const { user } = useApp();
   const [messages, setMessages] = useState([
-    { role: "ai", text: "I can explain your MRI results, please choose a question below." }
+    { id: 1, from: "ai", text: SYSTEM_MSG, time: now() },
   ]);
-  const [chatStarted, setChatStarted] = useState(false);
-  const [inputText, setInputText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
   const bottomRef = useRef();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, typing]);
 
-  const addMessage = (userText) => {
-    const answer = AI_ANSWERS[userText] || "Thank you for your question. Please consult a medical professional for personalized advice.";
-    setMessages(prev => [...prev, { role: "user", text: userText }]);
-    setChatStarted(true);
-    setIsTyping(true);
+  const sendMessage = () => {
+    const text = input.trim();
+    if (!text) return;
+    const userMsg = { id: Date.now(), from: "user", text, time: now() };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+    setTyping(true);
+
     setTimeout(() => {
-      setIsTyping(false);
-      setMessages(prev => [...prev, { role: "ai", text: answer }]);
-    }, 1200);
-  };
-
-  const handleSend = () => {
-    if (!inputText.trim() || isTyping) return;
-    addMessage(inputText.trim());
-    setInputText("");
+      const matched = CANNED.find(c => c.q.test(text));
+      const reply = matched?.a || "That's a great question! For personalized medical advice, please consult a qualified healthcare professional. I can answer general questions about brain tumors and our AI analysis.";
+      setMessages(prev => [...prev, { id: Date.now() + 1, from: "ai", text: reply, time: now() }]);
+      setTyping(false);
+    }, 900);
   };
 
   return (
-<div style={{ display: "flex", flexDirection: "column", overflow: "hidden", height: "100vh", background: "var(--bg)" }}>      {/* Header */}
-      <div style={{ flexShrink: 0 }}>
-        <TopBar title="Chat with AI" />
-        <div style={{ padding: "0 20px 10px", display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 10, height: 10, borderRadius: "50%",
-            background: "#22C55E", display: "inline-block"
-          }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--primary)" }}>Online</span>
-          <div style={{ marginLeft: "auto" }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: "50%",
-              background: "var(--primary-dark)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 20,
-            }}>🤖</div>
-          </div>
+    <div style={styles.page}>
+      {/* Header */}
+      <div style={styles.header}>
+        <div style={styles.aiAvatar}>🤖</div>
+        <div>
+          <div style={styles.aiName}>NeuroAI</div>
+          <div style={styles.aiStatus}>● Online</div>
         </div>
       </div>
 
       {/* Messages */}
-      <div style={{
-        flex: 1, overflowY: "auto", padding: "0 20px",
-        display: "flex", flexDirection: "column", gap: 10,
-      }}>
-        {messages.map((msg, i) => {
-          const isAI = msg.role === "ai";
-          return (
-            <div key={i} style={{ display: "flex", justifyContent: isAI ? "flex-start" : "flex-end" }}>
-              <div style={{
-                padding: "13px 16px",
-                borderRadius: 18,
-                borderBottomLeftRadius: isAI ? 4 : 18,
-                borderBottomRightRadius: isAI ? 18 : 4,
-                fontSize: 14, lineHeight: 1.55, maxWidth: "82%",
-                background: isAI ? "var(--primary-lighter)" : "var(--primary)",
-                color: isAI ? "var(--text-primary)" : "#fff",
-                whiteSpace: "pre-line",
-                fontWeight: isAI ? 500 : 600,
-              }}>
+      <div style={styles.messages}>
+        {messages.map(msg => (
+          <div key={msg.id} style={{ ...styles.msgRow, justifyContent: msg.from === "user" ? "flex-end" : "flex-start" }}>
+            {msg.from === "ai" && <div style={styles.aiBubbleAvatar}>🤖</div>}
+            <div style={{ maxWidth: "78%" }}>
+              <div style={msg.from === "user" ? styles.userBubble : styles.aiBubble}>
                 {msg.text}
               </div>
-            </div>
-          );
-        })}
-
-        {isTyping && (
-          <div style={{ display: "flex", justifyContent: "flex-start" }}>
-            <div style={{
-              padding: "13px 18px", borderRadius: 18, borderBottomLeftRadius: 4,
-              background: "var(--primary-lighter)", display: "flex", gap: 5, alignItems: "center",
-            }}>
-              {[0, 1, 2].map(i => (
-                <span key={i} style={{
-                  width: 7, height: 7, borderRadius: "50%",
-                  background: "var(--primary)",
-                  animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
-                  display: "inline-block",
-                }} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!chatStarted && (
-          <div style={{ paddingTop: 8 }}>
-            {AI_QUESTIONS.map(({ group, items }) => (
-              <div key={group} style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-muted)", marginBottom: 8 }}>
-                  {group}
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {items.map(q => (
-                    <button
-                      key={q.id}
-                      onClick={() => addMessage(q.text)}
-                      className="chat-question-btn"
-                    >
-                      {q.text}
-                    </button>
-                  ))}
-                </div>
+              <div style={{ ...styles.time, textAlign: msg.from === "user" ? "right" : "left" }}>
+                {msg.time}
               </div>
-            ))}
-            <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-muted)", padding: "8px 0 14px" }}>
-              — Select a question and continue —
-            </p>
+            </div>
+          </div>
+        ))}
+        {typing && (
+          <div style={{ ...styles.msgRow, justifyContent: "flex-start" }}>
+            <div style={styles.aiBubbleAvatar}>🤖</div>
+            <div style={styles.typingBubble}>
+              <span style={styles.dot} /><span style={styles.dot} /><span style={styles.dot} />
+            </div>
           </div>
         )}
-
         <div ref={bottomRef} />
       </div>
 
-      {/* Disclaimer */}
-      <div style={{
-        margin: "0 20px 4px",
-        background: "var(--white)",
-        borderRadius: "var(--radius-md)",
-        padding: "10px 14px",
-        display: "flex", alignItems: "center", gap: 8,
-        border: "1px solid var(--border)",
-        flexShrink: 0,
-      }}>
-        <span style={{ fontSize: 16 }}>🤖</span>
-        <span style={{ fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>
-          This AI assistant provides informational support only.
-        </span>
-      </div>
-
-      {/* Input bar */}
-      <div style={{ padding: "10px 20px 16px", flexShrink: 0 }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <input
-            className="input"
-            placeholder="Ask about your results..."
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleSend()}
-            style={{ flex: 1 }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!inputText.trim() || isTyping}
-            style={{
-              width: 48, height: 48, flexShrink: 0,
-              background: !inputText.trim() || isTyping ? "#A5C9C9" : "var(--primary)",
-              border: "none", borderRadius: "var(--radius-md)",
-              cursor: !inputText.trim() || isTyping ? "not-allowed" : "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "background 0.2s",
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+      {/* Suggestions */}
+      <div style={styles.suggestions}>
+        {["What is a malignant tumor?", "How accurate is the AI?", "Is my data safe?"].map(s => (
+          <button key={s} style={styles.suggestion} onClick={() => { setInput(s); }}>
+            {s}
           </button>
-        </div>
+        ))}
       </div>
 
+      {/* Input */}
+      <div style={styles.inputRow}>
+        <input
+          style={styles.input}
+          placeholder="Ask about brain tumors…"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && sendMessage()}
+        />
+        <button style={styles.sendBtn} onClick={sendMessage} disabled={!input.trim()}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
+
+function now() {
+  return new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+const styles = {
+  page:          { display: "flex", flexDirection: "column", height: "100dvh", background: "#F9FAFB", fontFamily: "'Segoe UI', sans-serif" },
+  header:        { display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", background: "#fff", borderBottom: "1px solid #E5E7EB" },
+  aiAvatar:      { width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #2E8B8B, #0d3d3d)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 },
+  aiName:        { fontSize: 15, fontWeight: 700, color: "#111" },
+  aiStatus:      { fontSize: 12, color: "#10B981", fontWeight: 500 },
+  messages:      { flex: 1, overflowY: "auto", padding: "20px 16px", display: "flex", flexDirection: "column", gap: 16 },
+  msgRow:        { display: "flex", gap: 10, alignItems: "flex-end" },
+  aiBubbleAvatar:{ width: 32, height: 32, borderRadius: "50%", background: "#E0F7FA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 },
+  aiBubble:      { background: "#fff", border: "1px solid #E5E7EB", borderRadius: "4px 16px 16px 16px", padding: "12px 14px", fontSize: 14, color: "#374151", lineHeight: 1.6 },
+  userBubble:    { background: "#2E8B8B", color: "#fff", borderRadius: "16px 4px 16px 16px", padding: "12px 14px", fontSize: 14, lineHeight: 1.6 },
+  time:          { fontSize: 11, color: "#D1D5DB", marginTop: 4 },
+  typingBubble:  { background: "#fff", border: "1px solid #E5E7EB", borderRadius: "4px 16px 16px 16px", padding: "14px 18px", display: "flex", gap: 6, alignItems: "center" },
+  dot:           { display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#2E8B8B", animation: "bounce .9s ease-in-out infinite" },
+  suggestions:   { display: "flex", gap: 8, padding: "10px 16px", overflowX: "auto", scrollbarWidth: "none" },
+  suggestion:    { whiteSpace: "nowrap", padding: "7px 12px", background: "#fff", border: "1.5px solid #E5E7EB", borderRadius: 20, fontSize: 12, color: "#2E8B8B", fontWeight: 500, cursor: "pointer", flexShrink: 0 },
+  inputRow:      { display: "flex", gap: 10, padding: "12px 16px 24px", background: "#fff", borderTop: "1px solid #E5E7EB" },
+  input:         { flex: 1, padding: "12px 16px", border: "1.5px solid #E5E7EB", borderRadius: 12, fontSize: 14, color: "#111", outline: "none" },
+  sendBtn:       { width: 46, height: 46, borderRadius: 12, background: "#2E8B8B", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+};

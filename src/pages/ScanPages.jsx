@@ -1,544 +1,268 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useApp, PAGES } from "../context/AppContext";
-import TopBar from "../components/TopBar";
+import { apiUploadScan, apiRunAnalysis } from "../services/api";
 
-/* ════════════════════════════════════════════
-   RESULT PAGE
-════════════════════════════════════════════ */
-export function ResultPage() {
-  const { navigate, uploadedImage, analysisResult, addToHistory, history } = useApp();
+// ── Upload Page ───────────────────────────────────────────────
+export function UploadPage() {
+  const { navigate, setUploadedImage, setUploadedScanId, addToHistory } = useApp();
+  const [preview, setPreview]     = useState(null);
+  const [file,    setFile]        = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [status,  setStatus]      = useState("");
+  const [error,   setError]       = useState("");
+  const fileRef = useRef();
 
-  const [zoom, setZoom]   = useState(1);
-  const [saved, setSaved] = useState(false);
-  const imgRef            = useRef();
-
-  const handleZoomIn  = () => setZoom(z => Math.min(z + 0.25, 3));
-  const handleZoomOut = () => setZoom(z => Math.max(z - 0.25, 1));
-
-  const handleSave = () => {
-    if (!analysisResult) return;
-    if (saved) { navigate(PAGES.HISTORY); return; }
-    const alreadySaved = history.some(
-      h => h.date === analysisResult.date && h.time === analysisResult.time
-    );
-    if (!alreadySaved)
-      addToHistory({ imageUrl: uploadedImage, result: analysisResult.result, confidence: analysisResult.confidence });
-    setSaved(true);
-    setTimeout(() => navigate(PAGES.HISTORY), 800);
+  const handleFile = (f) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setError("Please select an image file."); return; }
+    setError("");
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = e => setPreview(e.target.result);
+    reader.readAsDataURL(f);
   };
 
-  /* ══════════════════════ EMPTY STATE ══════════════════════ */
-  if (!analysisResult) {
-    return (
-      <div className="page fade-in">
-        <TopBar title="Result" onBack={() => navigate(PAGES.UPLOAD)} />
-        <div className="content-scroll-area"
-          style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
-            gap:20, padding:"40px 24px", textAlign:"center", maxWidth:300 }}>
-            <div style={{ position:"relative", width:100, height:100, borderRadius:32,
-              background:"var(--primary-light)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <svg width="48" height="48" viewBox="0 0 44 44" fill="none">
-                <path opacity={0.45} fill="var(--primary)"
-                  d="M10.1763 5.36113C10.4265 4.10483 11.0336 2.94728 11.9248 2.02715C12.8161 1.10702 13.9537 0.463328 15.2014 0.173169C16.4491-0.116989 17.754-0.0413073 18.9598 0.391149C20.1656 0.823606 21.2211 1.5945 22 2.61149C22.7789 1.5945 23.8344 0.823606 25.0402 0.391149C26.246-0.0413073 27.5509-0.116989 28.7986 0.173169C30.0463 0.463328 31.1839 1.10702 32.0752 2.02715C32.9664 2.94728 33.5735 4.10483 33.8237 5.36113L34.1674 7.08516L35.2838 7.30788C36.9652 7.64515 38.4781 8.55414 39.5653 9.88043C40.6525 11.2067 41.247 12.8685 41.2478 14.5834V15.1279C41.2478 17.1241 40.3954 18.9224 39.0343 20.1789C40.6968 21.0027 42.0615 22.3238 42.9387 23.9587C43.816 25.5936 44.1622 27.4611 43.9294 29.3018C43.6966 31.1426 42.8963 32.8651 41.6396 34.2301C40.3829 35.5951 38.7323 36.5348 36.9171 36.9188L36.8153 37.4274C36.4985 39.0125 35.7189 40.4682 34.5749 41.6103C33.431 42.7524 31.9742 43.5297 30.3885 43.844C28.8029 44.1583 27.1597 43.9954 25.6666 43.376C24.1735 42.7566 22.8975 41.7085 22 40.3641C21.1025 41.7085 19.8265 42.7566 18.3334 43.376C16.8403 43.9954 15.1971 44.1583 13.9208 43.844C12.2992 43.5083 10.8092 42.7524 9.63926 41.6103C8.46933 40.4682 7.67196 39.0125 7.34795 37.4274L7.08293 36.9188C5.26768 36.5348 3.61707 35.5951 2.36041 34.2301C1.10374 32.8651 0.303411 31.1426 0.0705967 29.3018C-0.162217 27.4611 0.184045 25.5936 1.06128 23.9587C1.93852 22.3238 3.30317 21.0027 4.96567 20.1789C3.60455 18.9224 2.75217 17.1241 2.75217 15.1279V14.5834C2.75297 12.8685 3.34748 11.2067 4.4347 9.88043C5.52191 8.55414 7.03477 7.64515 8.71624 7.30788L9.83262 7.08791L10.1763 5.36113Z"/>
-              </svg>
-              <div style={{ position:"absolute", inset:-8, borderRadius:40,
-                border:"2px dashed var(--primary)", opacity:0.25,
-                animation:"spin 10s linear infinite" }} />
-            </div>
-            <div>
-              <p style={{ fontWeight:700, fontSize:17, color:"var(--text-primary)", marginBottom:8 }}>
-                No Result Yet
-              </p>
-              <p style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.7 }}>
-                Upload an MRI scan and run the analysis to see your results here.
-              </p>
-            </div>
-            <button className="btn btn-primary" onClick={() => navigate(PAGES.UPLOAD)}
-              style={{ borderRadius:999, maxWidth:220, gap:8 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              Upload MRI Scan
-            </button>
-            <button className="btn btn-outline" onClick={() => navigate(PAGES.HISTORY)}
-              style={{ borderRadius:999, maxWidth:220, gap:8 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-              View History
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const dropped = e.dataTransfer.files[0];
+    handleFile(dropped);
+  };
+
+  const handleAnalyze = async () => {
+    if (!file) { setError("Please select an MRI scan image first."); return; }
+    setLoading(true);
+    setError("");
+    try {
+      setStatus("Uploading scan…");
+      const scanData = await apiUploadScan(file);
+      const scanId = scanData?.id || scanData?.scanId || scanData?.data?.id;
+      setUploadedScanId(scanId);
+      setUploadedImage(preview);
+
+      setStatus("Running AI analysis…");
+      const analysisData = await apiRunAnalysis(scanId);
+
+      const result     = analysisData?.result || analysisData?.diagnosis || analysisData?.prediction || "Unknown";
+      const confidence = typeof analysisData?.confidence === "number"
+        ? analysisData.confidence
+        : parseFloat(analysisData?.confidence) || 85;
+
+      addToHistory({ imageUrl: preview, result, confidence, scanId });
+      navigate(PAGES.RESULT);
+    } catch (err) {
+      setError(err.message || "Analysis failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setStatus("");
+    }
+  };
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <button style={styles.backBtn} onClick={() => navigate(PAGES.HOME)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <h1 style={styles.title}>Upload MRI Scan</h1>
+        <div style={{ width: 36 }} />
+      </div>
+
+      <p style={styles.subtitle}>Upload a brain MRI image for AI-powered tumor detection</p>
+
+      {/* Drop Zone */}
+      <div
+        style={{ ...styles.dropZone, ...(preview ? styles.dropZoneHasImage : {}) }}
+        onClick={() => !preview && fileRef.current?.click()}
+        onDrop={handleDrop}
+        onDragOver={e => e.preventDefault()}
+      >
+        {preview ? (
+          <div style={styles.previewWrapper}>
+            <img src={preview} alt="MRI preview" style={styles.previewImg} />
+            <button
+              style={styles.changeBtn}
+              onClick={e => { e.stopPropagation(); setPreview(null); setFile(null); }}
+            >
+              Change Image
             </button>
           </div>
+        ) : (
+          <div style={styles.dropPlaceholder}>
+            <div style={{ fontSize: 52 }}>🧠</div>
+            <div style={styles.dropTitle}>Drop your MRI scan here</div>
+            <div style={styles.dropSub}>or click to browse your device</div>
+            <div style={styles.dropHint}>Supports: JPG, PNG, DICOM</div>
+          </div>
+        )}
+      </div>
+      <input
+        ref={fileRef} type="file" accept="image/*"
+        style={{ display: "none" }}
+        onChange={e => handleFile(e.target.files[0])}
+      />
+
+      {error && (
+        <div style={styles.errorBanner}>⚠ {error}</div>
+      )}
+
+      {loading && status && (
+        <div style={styles.statusBanner}>
+          <Spinner /> {status}
         </div>
+      )}
+
+      <button
+        style={{ ...styles.analyzeBtn, opacity: (!file || loading) ? 0.6 : 1, cursor: (!file || loading) ? "not-allowed" : "pointer" }}
+        disabled={!file || loading}
+        onClick={handleAnalyze}
+      >
+        {loading ? <><Spinner light /> Analyzing…</> : "Analyze Scan"}
+      </button>
+
+      <div style={styles.tips}>
+        <div style={styles.tipTitle}>Tips for best results</div>
+        {[
+          "Use high-resolution MRI images (T1 or T2 weighted)",
+          "Ensure the image is clear and not blurry",
+          "Crop the image to focus on the brain area",
+        ].map(t => (
+          <div key={t} style={styles.tip}>
+            <span style={styles.tipDot} />
+            {t}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Result Page ───────────────────────────────────────────────
+export function ResultPage() {
+  const { navigate, analysisResult, uploadedImage } = useApp();
+
+  if (!analysisResult) {
+    return (
+      <div style={{ ...styles.page, textAlign: "center", paddingTop: 80 }}>
+        <div style={{ fontSize: 48 }}>🔬</div>
+        <div style={{ fontSize: 16, color: "#6B7280", marginTop: 12 }}>No result available.</div>
+        <button style={styles.backTertiary} onClick={() => navigate(PAGES.UPLOAD)}>Upload a Scan</button>
       </div>
     );
   }
 
-  /* ══════════════════════ HAS RESULT ══════════════════════ */
-  const res         = analysisResult;
-  const isMalignant = res.result === "Malignant";
-  const accent      = isMalignant ? "var(--danger)" : "var(--success)";
-  const accentLight = isMalignant ? "var(--danger-light)" : "var(--success-light)";
+  const { result, confidence, date, time } = analysisResult;
+  const isMalignant = result?.toLowerCase().includes("malign");
 
-  const radius      = 28;
-  const circ        = 2 * Math.PI * radius;
-  const strokeDash  = circ - (res.confidence / 100) * circ;
+  const badgeColor  = isMalignant ? "#DC2626" : "#16A34A";
+  const badgeBg     = isMalignant ? "#FEF2F2" : "#F0FDF4";
+  const badgeBorder = isMalignant ? "#FECACA" : "#BBF7D0";
+  const icon        = isMalignant ? "⚠️" : "✅";
 
   return (
-    <div className="page fade-in">
-      <TopBar title="Result" onBack={() => navigate(PAGES.UPLOAD)} />
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <button style={styles.backBtn} onClick={() => navigate(PAGES.UPLOAD)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <h1 style={styles.title}>Analysis Result</h1>
+        <div style={{ width: 36 }} />
+      </div>
 
-      <div className="content-scroll-area">
-        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      {uploadedImage && (
+        <div style={styles.resultImgWrapper}>
+          <img src={uploadedImage} alt="Analyzed MRI" style={styles.resultImg} />
+        </div>
+      )}
 
-          {/* ══ 1. MRI IMAGE CARD ══ */}
-          <div className="card" style={{ padding:0, overflow:"hidden" }}>
-            <div style={{ height:4, background: isMalignant
-              ? "linear-gradient(90deg,#EF4444,#f87171)"
-              : "linear-gradient(90deg,#22C55E,#4ade80)" }} />
+      <div style={{ ...styles.resultCard, border: `2px solid ${badgeBorder}`, background: badgeBg }}>
+        <div style={{ fontSize: 52, marginBottom: 8 }}>{icon}</div>
+        <div style={{ fontSize: 13, color: "#6B7280", marginBottom: 4 }}>Diagnosis Result</div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: badgeColor, marginBottom: 4 }}>{result}</div>
+        <div style={{ fontSize: 13, color: "#6B7280" }}>Analyzed: {date} at {time}</div>
+      </div>
 
-            <div style={{ position:"relative", background:"#0a1a1a", height:210,
-              display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-              {uploadedImage ? (
-                <img ref={imgRef} src={uploadedImage} alt="MRI scan"
-                  style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain",
-                    transform:`scale(${zoom})`, transition:"transform 0.2s ease", transformOrigin:"center" }}/>
-              ) : (
-                <div style={{ opacity:0.2 }}>
-                  <svg width="48" height="48" viewBox="0 0 44 44" fill="white">
-                    <path d="M10.1763 5.36113C10.4265 4.10483 11.0336 2.94728 11.9248 2.02715C12.8161 1.10702 13.9537 0.463328 15.2014 0.173169C16.4491-0.116989 17.754-0.0413073 18.9598 0.391149C20.1656 0.823606 21.2211 1.5945 22 2.61149C22.7789 1.5945 23.8344 0.823606 25.0402 0.391149C26.246-0.0413073 27.5509-0.116989 28.7986 0.173169C30.0463 0.463328 31.1839 1.10702 32.0752 2.02715C32.9664 2.94728 33.5735 4.10483 33.8237 5.36113L34.1674 7.08516L35.2838 7.30788C36.9652 7.64515 38.4781 8.55414 39.5653 9.88043C40.6525 11.2067 41.247 12.8685 41.2478 14.5834V15.1279C41.2478 17.1241 40.3954 18.9224 39.0343 20.1789C40.6968 21.0027 42.0615 22.3238 42.9387 23.9587C43.816 25.5936 44.1622 27.4611 43.9294 29.3018C43.6966 31.1426 42.8963 32.8651 41.6396 34.2301C40.3829 35.5951 38.7323 36.5348 36.9171 36.9188L36.8153 37.4274C36.4985 39.0125 35.7189 40.4682 34.5749 41.6103C33.431 42.7524 31.9742 43.5297 30.3885 43.844C28.8029 44.1583 27.1597 43.9954 25.6666 43.376C24.1735 42.7566 22.8975 41.7085 22 40.3641C21.1025 41.7085 19.8265 42.7566 18.3334 43.376C16.8403 43.9954 15.1971 44.1583 13.9208 43.844C12.2992 43.5083 10.8092 42.7524 9.63926 41.6103C8.46933 40.4682 7.67196 39.0125 7.34795 37.4274L7.08293 36.9188C5.26768 36.5348 3.61707 35.5951 2.36041 34.2301C1.10374 32.8651 0.303411 31.1426 0.0705967 29.3018C-0.162217 27.4611 0.184045 25.5936 1.06128 23.9587C1.93852 22.3238 3.30317 21.0027 4.96567 20.1789C3.60455 18.9224 2.75217 17.1241 2.75217 15.1279V14.5834C2.75297 12.8685 3.34748 11.2067 4.4347 9.88043C5.52191 8.55414 7.03477 7.64515 8.71624 7.30788L9.83262 7.08791L10.1763 5.36113Z"/>
-                  </svg>
-                </div>
-              )}
-
-              <div style={{ position:"absolute", bottom:10, right:10,
-                display:"flex", flexDirection:"column", gap:6, zIndex:10 }}>
-                {[
-                  { label:"+", action:handleZoomIn,  disabled:zoom>=3 },
-                  { label:"−", action:handleZoomOut, disabled:zoom<=1 },
-                ].map(btn => (
-                  <button key={btn.label} onClick={btn.action} disabled={btn.disabled}
-                    style={{ width:34, height:34, background:"rgba(255,255,255,0.92)", border:"none",
-                      borderRadius:8, fontSize:20, fontWeight:700,
-                      cursor:btn.disabled?"not-allowed":"pointer",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      opacity:btn.disabled?0.4:1, color:"#111", backdropFilter:"blur(4px)",
-                      lineHeight:1, boxShadow:"0 2px 8px rgba(0,0,0,0.3)",
-                      fontFamily:"inherit", transition:"opacity 0.15s" }}>
-                    {btn.label}
-                  </button>
-                ))}
-              </div>
-
-              {zoom > 1 && (
-                <div style={{ position:"absolute", top:10, left:10,
-                  background:"rgba(0,0,0,0.6)", color:"white", fontSize:11, fontWeight:600,
-                  padding:"3px 8px", borderRadius:6, backdropFilter:"blur(4px)" }}>
-                  {Math.round(zoom * 100)}%
-                </div>
-              )}
-            </div>
-
-            <div style={{ padding:"16px 18px 18px" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  <span className={`badge ${isMalignant ? "badge-malignant" : "badge-benign"}`}
-                    style={{ fontSize:13, padding:"6px 16px", gap:6 }}>
-                    {isMalignant ? (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                      </svg>
-                    ) : (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
-                      </svg>
-                    )}
-                    {res.result}
-                  </span>
-
-                  <div style={{ display:"flex", gap:12 }}>
-                    {[
-                      { icon:<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>, label:res.date },
-                      { icon:<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>, label:res.time },
-                    ].map((item, i) => (
-                      <div key={i} style={{ display:"flex", gap:4, alignItems:"center" }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2">{item.icon}</svg>
-                        <span style={{ fontSize:11.5, color:"var(--text-secondary)" }}>{item.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ position:"relative", width:72, height:72, flexShrink:0 }}>
-                  <svg width="72" height="72" viewBox="0 0 72 72" style={{ transform:"rotate(-90deg)" }}>
-                    <circle cx="36" cy="36" r={radius} fill="none" stroke={accentLight} strokeWidth="7"/>
-                    <circle cx="36" cy="36" r={radius} fill="none" stroke={accent} strokeWidth="7"
-                      strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={strokeDash}
-                      style={{ transition:"stroke-dashoffset 1s ease" }}/>
-                  </svg>
-                  <div style={{ position:"absolute", inset:0, display:"flex",
-                    flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-                    <span style={{ fontSize:15, fontWeight:800, color:"var(--text-primary)", lineHeight:1 }}>
-                      {res.confidence}%
-                    </span>
-                    <span style={{ fontSize:9, color:"var(--text-muted)", fontWeight:600, marginTop:2 }}>CONF.</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ background:accentLight, borderRadius:10, padding:"10px 14px",
-                borderLeft:`3px solid ${accent}` }}>
-                <p style={{ fontSize:12, fontWeight:700, color:accent, marginBottom:4 }}>Analysis Summary</p>
-                <p style={{ fontSize:12.5, lineHeight:1.65, color:"var(--text-secondary)", textAlign:"left" }}>
-                  The AI detected <strong style={{ color:"var(--text-primary)" }}>
-                  {isMalignant ? "abnormal" : "normal"}</strong> patterns in the scanned brain image,{" "}
-                  <span style={{ color:accent, fontWeight:600 }}>
-                    consistent with {res.result.toLowerCase()} characteristics.
-                  </span>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* ══ 2. KEY FINDINGS CARD ══ */}
-          <div className="card" style={{ padding:"16px 18px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14 }}>
-              <div style={{ width:28, height:28, borderRadius:8, background:accentLight,
-                display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.5">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-              </div>
-              <h4 style={{ fontSize:14, margin:0 }}>Key Findings</h4>
-            </div>
-
-            {[
-              {
-                bg:"#EEF2FF", color:"#6366F1",
-                icon:<path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>,
-                text:"Abnormal tissue patterns detected",
-              },
-              {
-                bg:"#f0fafa", color:"var(--primary)",
-                icon:<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></>,
-                text:"Irregular shape and intensity",
-              },
-              {
-                bg: accentLight, color: accent,
-                icon: isMalignant
-                  ? <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                  : <><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></>,
-                text: isMalignant ? "Matches malignant indicators" : "Consistent with benign pattern",
-              },
-            ].map((f, i, arr) => (
-              <div key={i} style={{ display:"flex", alignItems:"center", gap:12,
-                padding:"10px 0", borderBottom:i < arr.length-1 ? "1px solid var(--border)" : "none" }}>
-                <div style={{ width:34, height:34, borderRadius:9, background:f.bg, flexShrink:0,
-                  display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                    stroke={f.color} strokeWidth="2" strokeLinecap="round">{f.icon}</svg>
-                </div>
-                <span style={{ fontSize:13, color:"var(--text-primary)", fontWeight:500 }}>{f.text}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* ══ 3. DISCLAIMER ══ */}
-          <div style={{ background:"#fff8ed", border:"1px solid #fde68a", borderRadius:12,
-            padding:"12px 14px", display:"flex", gap:10, alignItems:"flex-start" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="#d97706" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0, marginTop:1 }}>
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <circle cx="12" cy="16" r="0.5" fill="#d97706"/>
-            </svg>
-            <p style={{ fontSize:12, color:"#92400e", lineHeight:1.65, textAlign:"left" }}>
-              This result is <strong style={{ color:"#d97706" }}>AI-assisted</strong> and should{" "}
-              <strong>not replace</strong> professional medical consultation. Always verify with a qualified physician.
-            </p>
-          </div>
+      <div style={styles.confidenceCard}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>AI Confidence</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: badgeColor }}>{confidence}%</span>
+        </div>
+        <div style={{ background: "#E5E7EB", borderRadius: 8, height: 10, overflow: "hidden" }}>
+          <div style={{ width: `${confidence}%`, height: "100%", background: badgeColor, borderRadius: 8, transition: "width 1s ease" }} />
         </div>
       </div>
 
-      {/* ── Bottom action bar ── */}
-      <div className="page-action-bar">
-        <div className="action-bar-inner">
-          <button className="btn btn-outline"
-            style={{ flex:"0 0 56px", padding:0, borderRadius:14, minHeight:54,
-              boxShadow:"0 2px 8px rgba(46,139,139,0.15)" }}
-            onClick={() => navigate(PAGES.CHAT)} title="Ask AI about this result">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          </button>
-
-          <button className="btn btn-primary" onClick={handleSave}
-            style={{ flex:1, minHeight:54, fontSize:16, fontWeight:700, borderRadius:14,
-              letterSpacing:"0.3px", boxShadow:"0 4px 14px rgba(46,139,139,0.35)",
-              background:saved?"var(--success)":"var(--primary)", transition:"background 0.3s" }}>
-            {saved ? (
-              <>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Saved!
-              </>
-            ) : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                Save Result
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-/* ════════════════════════════════════════════
-   UPLOAD PAGE  — camera bug fixed ✅
-════════════════════════════════════════════ */
-export function UploadPage() {
-  const { navigate, setUploadedImage, addToHistory } = useApp();
-  const [image, setImage]         = useState(null);
-  const [dragOver, setDragOver]   = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [error, setError]         = useState("");
-  const [showSheet, setShowSheet] = useState(false);
-
-  // ── FIX: two separate input refs instead of one + captureRef ──
-  const galleryInputRef = useRef();
-  const cameraInputRef  = useRef();
-
-  const ALLOWED  = ["image/jpeg","image/png","image/jpg"];
-  const MAX_SIZE = 10 * 1024 * 1024;
-
-  const processFile = useCallback((file) => {
-    setError("");
-    if (!file) return;
-    if (!ALLOWED.includes(file.type)) { setError("Only JPG and PNG files are supported."); return; }
-    if (file.size > MAX_SIZE)         { setError("File size must be under 10MB."); return; }
-    const reader = new FileReader();
-    reader.onload = (e) => setImage(e.target.result);
-    reader.readAsDataURL(file);
-  }, []);
-
-  const handleFileInput = (e) => { processFile(e.target.files[0]); e.target.value = null; };
-
-  // ── FIX: open the correct input directly ──
-  const openGallery = () => { setShowSheet(false); setTimeout(() => galleryInputRef.current?.click(), 120); };
-  const openCamera  = () => { setShowSheet(false); setTimeout(() => cameraInputRef.current?.click(),  120); };
-
-  const handleAnalyze = () => {
-    if (!image) { setError("Please select an MRI image first."); return; }
-    setAnalyzing(true);
-    setTimeout(() => {
-      const result     = Math.random() > 0.4 ? "Malignant" : "Benign";
-      const confidence = Math.floor(Math.random() * 15) + 82;
-      setUploadedImage(image);
-      addToHistory({ imageUrl: image, result, confidence });
-      setAnalyzing(false);
-      navigate(PAGES.RESULT, PAGES.UPLOAD);
-    }, 2200);
-  };
-
-  return (
-    <div className="page fade-in" style={{ position:"relative" }}>
-      <TopBar title="Upload MRI Scan" onBack={() => navigate(PAGES.HOME)} />
-
-      {/* ── FIX: two hidden inputs, each with correct capture attribute ── */}
-      <input
-        ref={galleryInputRef}
-        type="file"
-        accept="image/jpeg,image/png"
-        style={{ display:"none" }}
-        onChange={handleFileInput}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/jpeg,image/png"
-        capture="environment"
-        style={{ display:"none" }}
-        onChange={handleFileInput}
-      />
-
-      <div className="content-scroll-area">
-        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-
-          {image ? (
-            <div style={{ position:"relative", borderRadius:20, overflow:"hidden",
-              background:"#0a1a1a", minHeight:200, display:"flex",
-              alignItems:"center", justifyContent:"center" }}>
-              <img src={image} alt="Selected MRI"
-                style={{ maxWidth:"100%", maxHeight:260, objectFit:"contain", borderRadius:16 }}/>
-              <button onClick={() => setShowSheet(true)}
-                style={{ position:"absolute", top:12, right:12,
-                  background:"rgba(255,255,255,0.95)", border:"none", borderRadius:10,
-                  padding:"7px 14px", fontSize:12, fontWeight:700, color:"#111",
-                  display:"flex", alignItems:"center", gap:6, cursor:"pointer",
-                  boxShadow:"0 2px 10px rgba(0,0,0,0.25)", backdropFilter:"blur(6px)",
-                  fontFamily:"inherit" }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="23 4 23 10 17 10"/>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                </svg>
-                Change
-              </button>
-              <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)",
-                background:"rgba(0,0,0,0.6)", color:"white", fontSize:11, fontWeight:600,
-                padding:"4px 12px", borderRadius:8, backdropFilter:"blur(4px)", whiteSpace:"nowrap" }}>
-                MRI Image Ready
-              </div>
-            </div>
-          ) : (
-            <div className={`upload-zone ${dragOver?"drag-over":""}`}
-              style={{ minHeight:200, cursor:"pointer" }}
-              onClick={() => setShowSheet(true)}
-              onDragOver={e=>{e.preventDefault();setDragOver(true);}}
-              onDragLeave={()=>setDragOver(false)}
-              onDrop={e=>{e.preventDefault();setDragOver(false);processFile(e.dataTransfer.files[0]);}}>
-              <div style={{ width:72, height:72, borderRadius:20, background:"var(--primary-light)",
-                display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/>
-                  <circle cx="8.5" cy="8.5" r="1.5"/>
-                  <polyline points="21 15 16 10 5 21"/>
-                </svg>
-              </div>
-              <p style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)", textAlign:"center" }}>
-                No Image Selected
-              </p>
-              <p style={{ fontSize:13, color:"var(--text-muted)", textAlign:"center" }}>
-                Click to browse or drag & drop
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div style={{ background:"var(--danger-light)", border:"1px solid #fca5a5",
-              borderRadius:10, padding:"10px 14px", display:"flex", gap:8, alignItems:"center" }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-                <circle cx="12" cy="16" r="0.5" fill="var(--danger)"/>
-              </svg>
-              <span style={{ fontSize:13, color:"var(--danger)" }}>{error}</span>
-            </div>
-          )}
-
-          {image && (
-            <button className="btn btn-outline" onClick={() => setShowSheet(true)}
-              style={{ borderRadius:12 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
-              Change Image
-            </button>
-          )}
-
-          <div className="card" style={{ padding:"16px 18px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12 }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-                <circle cx="12" cy="16" r="0.5" fill="var(--warning)"/>
-              </svg>
-              <span style={{ fontSize:13, fontWeight:700 }}>Image Requirements</span>
-            </div>
-            {["Clear MRI image","No filters or edits","JPG or PNG format"].map(req => (
-              <div key={req} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
-                </svg>
-                <span style={{ fontSize:13, color:"var(--text-secondary)" }}>{req}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="page-action-bar">
-        <div className="action-bar-inner">
-          <button className="btn btn-primary" onClick={handleAnalyze}
-            disabled={analyzing || !image}
-            style={{ flex:1, minHeight:54, fontSize:16, fontWeight:700, borderRadius:14,
-              letterSpacing:"0.3px",
-              opacity:!image&&!analyzing?0.6:1,
-              boxShadow:image?"0 4px 14px rgba(46,139,139,0.35)":"none" }}>
-            {analyzing ? (
-              <>
-                <span className="spin" style={{ display:"inline-block", width:18, height:18,
-                  border:"2px solid rgba(255,255,255,0.3)", borderTop:"2px solid #fff",
-                  borderRadius:"50%" }}/>
-                Analyzing...
-              </>
-            ) : "Start Analysis"}
-          </button>
-        </div>
-      </div>
-
-      {showSheet && (
-        <div className="bottom-sheet-overlay" onClick={() => setShowSheet(false)}>
-          <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
-            <div className="sheet-handle"/>
-            <div style={{ marginBottom:20 }}>
-              <p style={{ fontSize:16, fontWeight:700, color:"var(--text-primary)", marginBottom:4, textAlign:"left" }}>
-                Upload photo
-              </p>
-              <p style={{ fontSize:13, color:"var(--text-muted)", textAlign:"left" }}>
-                Take or select the MRI image of the MRI scan.
-              </p>
-            </div>
-
-            {/* From Gallery */}
-            <button className="sheet-option-btn" onClick={openGallery}>
-              <div className="option-icon-wrapper" style={{ background:"#e8f5f5" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/>
-                  <circle cx="8.5" cy="8.5" r="1.5"/>
-                  <polyline points="21 15 16 10 5 21"/>
-                </svg>
-              </div>
-              <div className="option-text-group">
-                <span className="option-label">From Gallery</span>
-                <span className="option-desc">Select an MRI image from your device.</span>
-              </div>
-            </button>
-
-            {/* Use Camera */}
-            <button className="sheet-option-btn" onClick={openCamera}>
-              <div className="option-icon-wrapper" style={{ background:"#e8f5f5" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-              </div>
-              <div className="option-text-group">
-                <span className="option-label">Use Camera</span>
-                <span className="option-desc">Take a clear photo of the MRI scan.</span>
-              </div>
-            </button>
+      {isMalignant && (
+        <div style={styles.warningCard}>
+          <div style={{ fontSize: 18, marginBottom: 6 }}>🚨 Medical Attention Recommended</div>
+          <div style={{ fontSize: 13, color: "#7F1D1D", lineHeight: 1.6 }}>
+            This result indicates a potentially malignant tumor. Please consult a qualified neurologist or oncologist immediately. This AI analysis is not a substitute for professional medical diagnosis.
           </div>
         </div>
       )}
+
+      {!isMalignant && (
+        <div style={styles.goodCard}>
+          <div style={{ fontSize: 18, marginBottom: 6 }}>💚 No Malignant Tumor Detected</div>
+          <div style={{ fontSize: 13, color: "#14532D", lineHeight: 1.6 }}>
+            The analysis suggests no malignant tumor. Still, please consult your doctor for a full professional assessment and follow-up care.
+          </div>
+        </div>
+      )}
+
+      <div style={styles.resultActions}>
+        <button style={styles.primaryBtn} onClick={() => navigate(PAGES.UPLOAD)}>New Scan</button>
+        <button style={styles.secondaryBtn} onClick={() => navigate(PAGES.HISTORY)}>View History</button>
+      </div>
     </div>
   );
 }
+
+function Spinner({ light }) {
+  return (
+    <span style={{
+      display: "inline-block", width: 18, height: 18,
+      border: `2.5px solid ${light ? "rgba(255,255,255,.35)" : "rgba(46,139,139,.25)"}`,
+      borderTopColor: light ? "#fff" : "#2E8B8B",
+      borderRadius: "50%",
+      animation: "spin .7s linear infinite",
+    }} />
+  );
+}
+
+const styles = {
+  page:           { padding: "24px 20px 100px", maxWidth: 600, margin: "0 auto" },
+  header:         { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  title:          { fontSize: 18, fontWeight: 700, color: "#111", margin: 0 },
+  backBtn:        { width: 36, height: 36, borderRadius: "50%", background: "#F3F4F6", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  subtitle:       { fontSize: 13, color: "#9CA3AF", marginBottom: 20 },
+  dropZone:       { border: "2px dashed #D1D5DB", borderRadius: 16, padding: "48px 24px", textAlign: "center", cursor: "pointer", transition: "border-color .2s", marginBottom: 16, background: "#FAFAFA" },
+  dropZoneHasImage:{ padding: 0, border: "2px solid #2E8B8B", overflow: "hidden" },
+  dropPlaceholder:{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 },
+  dropTitle:      { fontSize: 16, fontWeight: 600, color: "#374151" },
+  dropSub:        { fontSize: 13, color: "#9CA3AF" },
+  dropHint:       { fontSize: 11, color: "#D1D5DB", marginTop: 4 },
+  previewWrapper: { position: "relative" },
+  previewImg:     { width: "100%", borderRadius: 14, display: "block", maxHeight: 280, objectFit: "cover" },
+  changeBtn:      { position: "absolute", bottom: 12, right: 12, background: "rgba(0,0,0,.55)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  errorBanner:    { background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#DC2626", marginBottom: 12 },
+  statusBanner:   { background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#1D4ED8", marginBottom: 12, display: "flex", alignItems: "center", gap: 10 },
+  analyzeBtn:     { width: "100%", padding: "14px", background: "#2E8B8B", color: "#fff", border: "none", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 },
+  tips:           { background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 14, padding: "16px 18px" },
+  tipTitle:       { fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10 },
+  tip:            { display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#6B7280", marginBottom: 6 },
+  tipDot:         { width: 6, height: 6, borderRadius: "50%", background: "#2E8B8B", flexShrink: 0 },
+  resultImgWrapper: { marginBottom: 16, borderRadius: 16, overflow: "hidden", background: "#000" },
+  resultImg:      { width: "100%", maxHeight: 220, objectFit: "cover", display: "block" },
+  resultCard:     { borderRadius: 16, padding: "24px 20px", textAlign: "center", marginBottom: 16 },
+  confidenceCard: { background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 14, padding: "16px 18px", marginBottom: 16 },
+  warningCard:    { background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 14, padding: "16px 18px", marginBottom: 20 },
+  goodCard:       { background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 14, padding: "16px 18px", marginBottom: 20 },
+  resultActions:  { display: "flex", gap: 12 },
+  primaryBtn:     { flex: 1, padding: "13px", background: "#2E8B8B", color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer" },
+  secondaryBtn:   { flex: 1, padding: "13px", background: "transparent", color: "#2E8B8B", border: "2px solid #2E8B8B", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer" },
+  backTertiary:   { marginTop: 16, padding: "10px 24px", background: "#2E8B8B", color: "#fff", border: "none", borderRadius: 10, cursor: "pointer" },
+};

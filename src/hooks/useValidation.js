@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
-// ─── Email ──────────────────────────────────────────────────
+// ── Password regex (matches backend: RegisterDto + ResetPasswordDto) ──
+// ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$  min 8 chars
+const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/;
+
+// ── Phone regex (matches backend RegisterDto) ──
+// Egyptian: 01[0-2,5]XXXXXXXX  or Saudi: 966XXXXXXXXX
+const PHONE_REGEX = /^(01[0-2,5][0-9]{8}|966[0-9]{9})$/;
+
 export function validateEmail(email) {
   if (!email.trim()) return "Email is required";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
@@ -8,66 +15,67 @@ export function validateEmail(email) {
   return "";
 }
 
-// ─── Password ───────────────────────────────────────────────
 export function validatePassword(password) {
   if (!password) return "Password is required";
-  if (password.length < 6) return "Password must be at least 6 characters";
+  if (password.length < 8) return "Password must be at least 8 characters";
+  if (!PWD_REGEX.test(password))
+    return "Password must contain uppercase, lowercase, number and special character";
   return "";
 }
 
 export function getPasswordRules(password) {
   return {
-    minLength: password.length >= 6,
-    hasNumber: /\d/.test(password),
-    hasUpper:  /[A-Z]/.test(password),
+    minLength:   password.length >= 8,
+    hasLower:    /[a-z]/.test(password),
+    hasUpper:    /[A-Z]/.test(password),
+    hasNumber:   /\d/.test(password),
+    hasSpecial:  /[\W_]/.test(password),
   };
 }
 
-// ─── Name ───────────────────────────────────────────────────
 export function validateName(name) {
   if (!name.trim()) return "Full name is required";
   if (name.trim().length < 2) return "Name must be at least 2 characters";
   return "";
 }
 
-// ─── Confirm Password ───────────────────────────────────────
+export function validatePhone(phone) {
+  if (!phone) return ""; // optional
+  if (!PHONE_REGEX.test(phone))
+    return "Enter a valid Egyptian (01XXXXXXXXX) or Saudi (966XXXXXXXXX) number";
+  return "";
+}
+
 export function validateConfirmPassword(password, confirm) {
   if (!confirm) return "Please confirm your password";
   if (password !== confirm) return "Passwords do not match";
   return "";
 }
 
-// ─── Organisation ───────────────────────────────────────────
-export function validateOrganisation(org) {
-  if (!org.trim()) return "Organisation is required";
-  return "";
-}
-
-// ─── useForm hook ───────────────────────────────────────────
 export function useForm(initialValues) {
   const [values,  setValues]  = useState(initialValues);
   const [errors,  setErrors]  = useState({});
   const [touched, setTouched] = useState({});
 
-  const handleChange = (field, value) => {
+  const handleChange = useCallback((field, value) => {
     setValues(v => ({ ...v, [field]: value }));
-    if (touched[field]) setErrors(e => ({ ...e, [field]: "" }));
-  };
+    setErrors(e => ({ ...e, [field]: "" }));
+  }, []);
 
-  const handleBlur = (field, validatorFn) => {
+  const handleBlur = useCallback((field, validatorFn) => {
     setTouched(t => ({ ...t, [field]: true }));
     if (validatorFn)
       setErrors(e => ({ ...e, [field]: validatorFn(values[field]) }));
-  };
+  }, [values]);
 
-  const setError = (field, msg) =>
-    setErrors(e => ({ ...e, [field]: msg }));
+  const setError = useCallback((field, msg) =>
+    setErrors(e => ({ ...e, [field]: msg })), []);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setValues(initialValues);
     setErrors({});
     setTouched({});
-  };
+  }, [initialValues]);
 
   return { values, errors, touched, handleChange, handleBlur, setError, reset };
 }
