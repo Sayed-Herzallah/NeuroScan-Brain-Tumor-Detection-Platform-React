@@ -14,7 +14,8 @@ export function UploadPage() {
 
   const handleFile = (f) => {
     if (!f) return;
-    if (!f.type.startsWith("image/")) { setError("Please select an image file."); return; }
+    if (!f.type.startsWith("image/")) { setError("Please select an image file (JPG, PNG, etc)."); return; }
+    if (f.size > 20 * 1024 * 1024) { setError("File is too large. Please use an image under 20MB."); return; }
     setError("");
     setFile(f);
     const reader = new FileReader();
@@ -35,17 +36,43 @@ export function UploadPage() {
     try {
       setStatus("Uploading scan…");
       const scanData = await apiUploadScan(file);
-      const scanId = scanData?.id || scanData?.scanId || scanData?.data?.id;
+
+      // ✅ Robust scan ID extraction from multiple possible response shapes
+      const scanId =
+        scanData?.id ??
+        scanData?.scanId ??
+        scanData?.data?.id ??
+        scanData?.data?.scanId;
+
+      if (!scanId) throw new Error("Upload succeeded but no scan ID was returned. Please try again.");
+
       setUploadedScanId(scanId);
       setUploadedImage(preview);
 
       setStatus("Running AI analysis…");
       const analysisData = await apiRunAnalysis(scanId);
 
-      const result     = analysisData?.result || analysisData?.diagnosis || analysisData?.prediction || "Unknown";
-      const confidence = typeof analysisData?.confidence === "number"
-        ? analysisData.confidence
-        : parseFloat(analysisData?.confidence) || 85;
+      // ✅ Robust result extraction from multiple possible response shapes
+      const result =
+        analysisData?.result ??
+        analysisData?.diagnosis ??
+        analysisData?.prediction ??
+        analysisData?.analysisResult ??
+        analysisData?.tumorType ??
+        analysisData?.data?.result ??
+        "Unknown";
+
+      // ✅ Confidence: might be 0–1 (fraction) or 0–100
+      let confidence =
+        typeof analysisData?.confidence === "number"
+          ? analysisData.confidence
+          : parseFloat(
+              analysisData?.confidence ??
+              analysisData?.confidenceScore ??
+              analysisData?.data?.confidence ??
+              85
+            );
+      if (confidence <= 1) confidence = Math.round(confidence * 100);
 
       addToHistory({ imageUrl: preview, result, confidence, scanId });
       navigate(PAGES.RESULT);
@@ -83,7 +110,7 @@ export function UploadPage() {
             <img src={preview} alt="MRI preview" style={styles.previewImg} />
             <button
               style={styles.changeBtn}
-              onClick={e => { e.stopPropagation(); setPreview(null); setFile(null); }}
+              onClick={e => { e.stopPropagation(); setPreview(null); setFile(null); setError(""); }}
             >
               Change Image
             </button>
@@ -93,7 +120,7 @@ export function UploadPage() {
             <div style={{ fontSize: 52 }}>🧠</div>
             <div style={styles.dropTitle}>Drop your MRI scan here</div>
             <div style={styles.dropSub}>or click to browse your device</div>
-            <div style={styles.dropHint}>Supports: JPG, PNG, DICOM</div>
+            <div style={styles.dropHint}>Supports: JPG, PNG, DICOM · Max 20MB</div>
           </div>
         )}
       </div>
