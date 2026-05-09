@@ -13,7 +13,6 @@ import {
   PrivacyPage, FaqPage, ContactPage,
 } from "./pages/ProfilePages";
 import EditProfilePage  from "./pages/EditProfilePage";
-import ChatPage         from "./pages/ChatPage";
 import BottomNavbar     from "./components/BottomNavbar";
 
 const AUTH_PAGES = new Set([
@@ -59,7 +58,6 @@ export default function App() {
             {page === PAGES.PRIVACY          && <PrivacyPage />}
             {page === PAGES.FAQ              && <FaqPage />}
             {page === PAGES.CONTACT          && <ContactPage />}
-            {page === PAGES.CHAT             && <ChatPage />}
           </div>
           <BottomNavbar />
         </>
